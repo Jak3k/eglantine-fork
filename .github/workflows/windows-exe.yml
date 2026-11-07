@@ -1,0 +1,25 @@
+name: Windows EXE package
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [eglantine-time]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-exe-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows:
+    uses: ./.github/workflows/build-windows.yml
+    with:
+      sha: ${{ github.sha }}
+      version: eglantine-time
+      refspec: eglantine-time
+      tag: eglantine-time
+      release: false
+      nightly: false
+      pgo: none

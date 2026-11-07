@@ -55,4 +55,3 @@ if ($ExitCode -ne 0) {
 }
 
 echo "Finished installing Vulkan SDK $VulkanSDKVer"
-
