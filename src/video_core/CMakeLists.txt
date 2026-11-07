@@ -196,6 +196,8 @@ add_library(video_core STATIC
     renderer_vulkan/vk_multi_range_buffer.h
     renderer_vulkan/vk_master_semaphore.cpp
     renderer_vulkan/vk_master_semaphore.h
+    renderer_vulkan/pipeline_cache_snapshot.h
+    renderer_vulkan/temporal_inputs.h
     renderer_vulkan/vk_pipeline_cache.cpp
     renderer_vulkan/vk_pipeline_cache.h
     renderer_vulkan/vk_present_manager.cpp
@@ -233,6 +235,7 @@ add_library(video_core STATIC
     vulkan_common/vulkan_instance.h
     vulkan_common/vulkan_library.cpp
     vulkan_common/vulkan_library.h
+    vulkan_common/image_allocation_policy.h
     vulkan_common/vulkan_memory_allocator.cpp
     vulkan_common/vulkan_memory_allocator.h
     vulkan_common/vulkan_surface.cpp

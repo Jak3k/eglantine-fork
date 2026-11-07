@@ -149,11 +149,12 @@ std::unique_ptr<TranslationMap> InitializeTranslations(QObject* parent) {
            tr("Strength of RCAS (AMD's contrast-adaptive sharpening) on the upscaler used in place "
               "of a game's DLSS (AMD FSR 3.1); 0% turns it off.\nAlso sets the sharpening "
               "of the AMD FSR 1 and SGSR window adapting filters."));
-    INSERT(Settings, nvidia_dlss, tr("Use NVIDIA DLSS in place of a game's DLSS"),
-           tr("Uses NVIDIA DLSS on GeForce RTX cards in place of a Switch 2 game's own DLSS, "
-              "instead of AMD FSR 3.1.\nNeeds NVIDIA's Streamline loader, and NVIDIA DLSS unless "
-              "the NVIDIA app has downloaded it; Eglantine does not ship NVIDIA's files. Use the "
-              "download button below.\nTakes effect when a game starts."));
+    INSERT(
+        Settings, nvidia_dlss, tr("Use NVIDIA DLSS in place of a game's DLSS"),
+        tr("Uses NVIDIA DLSS on GeForce RTX cards in place of a Switch 2 game's own DLSS, "
+           "instead of AMD FSR 3.1.\nNeeds NVIDIA's Streamline loader, and NVIDIA DLSS unless "
+           "the NVIDIA app has downloaded it; Eglantine-Time does not ship NVIDIA's files. Use the "
+           "download button below.\nTakes effect when a game starts."));
     INSERT(Settings, anti_aliasing, tr("Anti-Aliasing Method:"),
            tr("The anti-aliasing method to use.\nSMAA offers the best quality.\nFXAA "
               "can produce a more stable picture in lower resolutions."));
@@ -292,6 +293,13 @@ std::unique_ptr<TranslationMap> InitializeTranslations(QObject* parent) {
     INSERT(Settings, enable_buffer_history, tr("Enable buffer history"),
            tr("Enables access to previous buffer states.\nThis option may improve rendering "
               "quality and performance consistency in some games."));
+    INSERT(Settings, use_aggressive_asynchronous_shaders,
+           tr("Aggressive asynchronous shader compilation"),
+           tr("Skip all draws whose pipelines are still compiling when asynchronous shaders are "
+              "enabled. One-time texture and post-processing draws can be omitted."));
+    INSERT(Settings, oot_60hz_presentation, tr("Ocarina of Time: 60 Hz presentation"),
+           tr("Request 60 Hz presentation for Ocarina of Time. This does not unlock a cap in "
+              "the game's simulation or create additional frames."));
     INSERT(Settings, fix_bloom_effects, tr("Fix bloom effects"), tr("Removes bloom in Burnout."));
 
     // Renderer (Extensions)

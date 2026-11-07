@@ -8,11 +8,13 @@
 
 #include <boost/container/small_vector.hpp>
 
+#include "common/game_presets.h"
 #include "core/hle/service/nvdrv/devices/nvdisp_disp0.h"
 #include "core/hle/service/nvnflinger/buffer_item.h"
 #include "core/hle/service/nvnflinger/buffer_item_consumer.h"
 #include "core/hle/service/nvnflinger/hardware_composer.h"
 #include "core/hle/service/nvnflinger/hwc_layer.h"
+#include "core/hle/service/nvnflinger/presentation_interval.h"
 #include "core/hle/service/nvnflinger/ui/graphic_buffer.h"
 
 namespace Service::Nvnflinger {
@@ -20,6 +22,9 @@ namespace Service::Nvnflinger {
 namespace {
 
 s32 NormalizeSwapInterval(f32* out_speed_scale, s32 swap_interval) {
+    swap_interval = PresentationInterval(
+        swap_interval, Settings::values.oot_60hz_presentation.GetValue() &&
+                           Settings::GetCurrentProgramID() == Settings::OcarinaOfTimeProgramId);
     if (swap_interval <= 0) {
         // As an extension, treat nonpositive swap interval as speed multiplier.
         if (out_speed_scale) {

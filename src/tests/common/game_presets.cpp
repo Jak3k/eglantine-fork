@@ -57,6 +57,25 @@ TEST_CASE("Display filter defaults use ScaleForce and FXAA", "[game_presets]") {
     CHECK(settings->anti_aliasing.GetDefault() == Settings::AntiAliasing::Fxaa);
 }
 
+TEST_CASE("Ocarina preset restores global pacing preferences after the session", "[game_presets]") {
+    auto settings = std::make_unique<Settings::Values>();
+    settings->frame_pacing_mode.SetValue(Settings::FramePacingMode::Target_Auto);
+    settings->oot_60hz_presentation.SetValue(false);
+    CHECK_FALSE(
+        Settings::ApplyOcarinaOfTimePreset(*settings, Settings::MarioKartWorldProgramId, true));
+    CHECK(settings->frame_pacing_mode.GetValue() == Settings::FramePacingMode::Target_Auto);
+    REQUIRE(Settings::ApplyOcarinaOfTimePreset(*settings, Settings::OcarinaOfTimeProgramId, true));
+    CHECK(settings->frame_pacing_mode.GetValue() == Settings::FramePacingMode::Target_60);
+    CHECK(settings->oot_60hz_presentation.GetValue());
+    CHECK(settings->frame_pacing_mode.GetValue(true) == Settings::FramePacingMode::Target_Auto);
+    CHECK_FALSE(settings->oot_60hz_presentation.GetValue(true));
+    for (const auto& restore : settings->linkage.restore_functions) {
+        restore();
+    }
+    CHECK(settings->frame_pacing_mode.GetValue() == Settings::FramePacingMode::Target_Auto);
+    CHECK_FALSE(settings->oot_60hz_presentation.GetValue());
+}
+
 TEST_CASE("Accepted MKW settings replace visible global preferences", "[game_presets]") {
     auto settings = std::make_unique<Settings::Values>();
     SetConflictingPreferences(*settings, false);

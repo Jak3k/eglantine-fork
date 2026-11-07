@@ -8,6 +8,7 @@
 #include <string_view>
 
 #include "common/logging.h"
+#include "video_core/renderer_vulkan/temporal_inputs.h"
 #include "video_core/renderer_vulkan/vk_scheduler.h"
 #include "video_core/renderer_vulkan/vk_streamline_dlss.h"
 #include "video_core/vulkan_common/streamline.h"
@@ -213,7 +214,10 @@ void StreamlineDlssUpscaler::CreateOutput(VkExtent2D upscale_size) {
 }
 
 bool StreamlineDlssUpscaler::Upscale(const Inputs& in) {
-    if (failed) {
+    if (failed ||
+        !ValidTemporalInputs({in.render_size.width, in.render_size.height}, in.jitter,
+                             in.motion_vector_scale) ||
+        in.upscale_size.width == 0 || in.upscale_size.height == 0) {
         return false;
     }
     bool reset = in.reset;

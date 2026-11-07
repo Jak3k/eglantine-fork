@@ -8,9 +8,9 @@
 
 // yuzu data directories
 
-#define EDEN_DIR "eglantine"
+#define EDEN_DIR "eglantine-time"
 #define EDEN_LEGACY_DIR "eden"
-#define PORTABLE_DIR "user"
+#define PORTABLE_DIR "user-time"
 
 // Sub-directories contained within a yuzu data directory
 #define AMIIBO_DIR "amiibo"
@@ -41,6 +41,6 @@
 #define RYUJINX_DIR "Ryujinx"
 
 // yuzu-specific files
-#define LOG_FILE "eden_log.txt"
+#define LOG_FILE "eglantine_time_log.txt"
 #define LOSSLESS_DLL_FILE "Lossless.dll"
 #define LOSSLESS_CACHE_FILE "lsfg_spirv.cache"

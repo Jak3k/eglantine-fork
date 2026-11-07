@@ -5,20 +5,21 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include <algorithm>
+#include <bit>
 #include <chrono>
 #include <cstddef>
 #include <fstream>
 #include <iostream>
 #include <memory>
+#include <numeric>
 #include <span>
 #include <thread>
 #include <vector>
-#include <bit>
-#include <numeric>
 #include "common/cityhash.h"
-#include "common/scope_exit.h"
+#include "common/env_gate.h"
 #include "common/fs/fs.h"
 #include "common/fs/path_util.h"
+#include "common/scope_exit.h"
 #include "common/thread_worker.h"
 #include "core/core.h"
 #include "shader_recompiler/backend/spirv/emit_spirv.h"
@@ -27,12 +28,13 @@
 #include "shader_recompiler/frontend/maxwell/translate_program.h"
 #include "shader_recompiler/ir_opt/passes.h"
 #include "shader_recompiler/program_header.h"
-#include "common/env_gate.h"
 #include "video_core/engines/kepler_compute.h"
 #include "video_core/engines/maxwell_3d.h"
+#include "video_core/gpu_logging/gpu_logging.h"
 #include "video_core/memory_manager.h"
 #include "video_core/renderer_vulkan/fixed_pipeline_state.h"
 #include "video_core/renderer_vulkan/maxwell_to_vk.h"
+#include "video_core/renderer_vulkan/pipeline_cache_snapshot.h"
 #include "video_core/renderer_vulkan/pipeline_helper.h"
 #include "video_core/renderer_vulkan/pipeline_statistics.h"
 #include "video_core/renderer_vulkan/vertex_repack.h"
@@ -48,7 +50,6 @@
 #include "video_core/surface.h"
 #include "video_core/vulkan_common/vulkan_device.h"
 #include "video_core/vulkan_common/vulkan_wrapper.h"
-#include "video_core/gpu_logging/gpu_logging.h"
 
 #ifdef __ANDROID__
 #include "../../android/app/src/main/jni/android_settings.h"
@@ -687,6 +688,8 @@ bool PreloadAllPipelines() {
 
 PipelineCache::~PipelineCache() {
     StopBackgroundPipelines();
+    workers.WaitForRequests();
+    serialization_thread.WaitForRequests();
     SaveUsedPipelines();
     if (use_vulkan_pipeline_cache && !vulkan_pipeline_cache_filename.empty()) {
         SerializeVulkanPipelineCache(vulkan_pipeline_cache_filename, vulkan_pipeline_cache,
@@ -824,6 +827,8 @@ void PipelineCache::LoadDiskResources(u64 title_id, std::stop_token stop_loading
     if (title_id == 0) {
         return;
     }
+    StopBackgroundPipelines();
+    workers.WaitForRequests();
     if (!pipeline_cache_filename.empty()) {
         serialization_thread.WaitForRequests();
         if (use_vulkan_pipeline_cache && !vulkan_pipeline_cache_filename.empty()) {
@@ -1245,6 +1250,10 @@ GraphicsPipeline* PipelineCache::BuiltPipeline(GraphicsPipeline* pipeline) const
     if (!use_asynchronous_shaders) {
         return pipeline;
     }
+    if (Settings::values.use_aggressive_asynchronous_shaders.GetValue()) {
+        graphics_miss = "async-build";
+        return nullptr;
+    }
     // If something is using depth, we can assume that games are not rendering anything which
     // will be used one time.
     if (maxwell3d->regs.zeta_enable) {
@@ -1621,6 +1630,18 @@ std::unique_ptr<ComputePipeline> PipelineCache::CreateComputePipeline(
 void PipelineCache::SerializeVulkanPipelineCache(const std::filesystem::path& filename,
                                                  const vk::PipelineCache& pipeline_cache,
                                                  u32 cache_version) try {
+    const auto cache_data = ReadPipelineCacheSnapshot([&](size_t* size, void* data) {
+        if (pipeline_cache) {
+            return pipeline_cache.Read(size, data);
+        }
+        *size = 0;
+        return VK_SUCCESS;
+    });
+    if (!cache_data) {
+        LOG_WARNING(Render_Vulkan,
+                    "Vulkan pipeline cache snapshot unavailable; keeping prior cache");
+        return;
+    }
     // Written beside the cache and renamed over it: the emulator stopped mid-write left the cache
     // empty, and every later boot failed to read it.
     auto temporary = filename;
@@ -1635,14 +1656,7 @@ void PipelineCache::SerializeVulkanPipelineCache(const std::filesystem::path& fi
     file.write(VULKAN_CACHE_MAGIC_NUMBER.data(), VULKAN_CACHE_MAGIC_NUMBER.size())
         .write(reinterpret_cast<const char*>(&cache_version), sizeof(cache_version));
 
-    size_t cache_size = 0;
-    std::vector<char> cache_data;
-    if (pipeline_cache) {
-        pipeline_cache.Read(&cache_size, nullptr);
-        cache_data.resize(cache_size);
-        pipeline_cache.Read(&cache_size, cache_data.data());
-    }
-    file.write(cache_data.data(), cache_size);
+    file.write(cache_data->data(), cache_data->size());
     file.close();
     std::error_code error;
     std::filesystem::rename(temporary, filename, error);
@@ -1658,9 +1672,11 @@ void PipelineCache::SerializeVulkanPipelineCache(const std::filesystem::path& fi
 
 } catch (const std::ios_base::failure& e) {
     LOG_ERROR(Common_Filesystem, "{}", e.what());
-    if (!Common::FS::RemoveFile(filename)) {
+    auto temporary = filename;
+    temporary += ".tmp";
+    if (!Common::FS::RemoveFile(temporary)) {
         LOG_ERROR(Common_Filesystem, "Failed to delete Vulkan driver pipeline cache file {}",
-                  Common::FS::PathToUTF8String(filename));
+                  Common::FS::PathToUTF8String(temporary));
     }
 }
 

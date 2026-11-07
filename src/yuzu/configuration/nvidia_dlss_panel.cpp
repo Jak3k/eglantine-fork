@@ -453,12 +453,12 @@ void NvidiaDlssPanel::Download() {
     QDialog dialog(this);
     dialog.setWindowTitle(Tr("Download NVIDIA DLSS"));
     QVBoxLayout* layout = new QVBoxLayout(&dialog);
-    QLabel* intro = new QLabel(
-        Tr("Eglantine will download %1 from NVIDIA's Streamline %2 release on GitHub into %3.<br>"
-           "These files are NVIDIA's, under NVIDIA's licence terms below.")
-            .arg(names.join(QStringLiteral(" and ")), QString::fromLatin1(RELEASE_VERSION),
-                 PathText(folder)),
-        &dialog);
+    QLabel* intro = new QLabel(Tr("Eglantine-Time will download %1 from NVIDIA's Streamline %2 "
+                                  "release on GitHub into %3.<br>"
+                                  "These files are NVIDIA's, under NVIDIA's licence terms below.")
+                                   .arg(names.join(QStringLiteral(" and ")),
+                                        QString::fromLatin1(RELEASE_VERSION), PathText(folder)),
+                               &dialog);
     intro->setWordWrap(true);
     QPlainTextEdit* licence_text = new QPlainTextEdit(QString::fromStdString(licences), &dialog);
     licence_text->setReadOnly(true);

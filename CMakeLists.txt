@@ -4,7 +4,7 @@
 cmake_minimum_required(VERSION 3.31)
 
 set(CMAKE_OSX_DEPLOYMENT_TARGET "15.0" CACHE STRING "macOS deployment target")
-project(yuzu)
+project(EglantineTime)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/CMakeModules")
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/CMakeModules/find")
@@ -284,7 +284,7 @@ option(NIGHTLY_BUILD "Use Nightly qualifiers in the update checker and build met
 cmake_dependent_option(YUZU_ROOM "Enable dedicated room functionality" ON "NOT ANDROID" OFF)
 cmake_dependent_option(YUZU_ROOM_STANDALONE "Enable standalone room executable" ON "YUZU_ROOM" OFF)
 
-cmake_dependent_option(YUZU_CMD "Compile the eden-cli executable" ON "NOT ANDROID" OFF)
+cmake_dependent_option(YUZU_CMD "Compile the eglantine-time-cli executable" ON "NOT ANDROID" OFF)
 
 cmake_dependent_option(YUZU_CRASH_DUMPS "Compile crash dump (Minidump) support" OFF "WIN32 OR LINUX" OFF)
 
@@ -753,15 +753,15 @@ endif()
 # TODO: Icon/install handling n such should be put into dist/CMakeLists.txt
 if(ENABLE_QT AND UNIX AND NOT APPLE)
     install(FILES "dist/dev.eden_emu.eden.desktop"
-        DESTINATION "share/applications")
+        DESTINATION "share/applications" RENAME "dev.eglantine.time.desktop")
     install(FILES "dist/dev.eden_emu.eden.svg"
-        DESTINATION "share/icons/hicolor/scalable/apps")
+        DESTINATION "share/icons/hicolor/scalable/apps" RENAME "dev.eglantine.time.svg")
 
     # TODO: these files need to be updated.
     install(FILES "dist/dev.eden_emu.eden.xml"
-        DESTINATION "share/mime/packages")
+        DESTINATION "share/mime/packages" RENAME "dev.eglantine.time.xml")
     install(FILES "dist/dev.eden_emu.eden.metainfo.xml"
-        DESTINATION "share/metainfo")
+        DESTINATION "share/metainfo" RENAME "dev.eglantine.time.metainfo.xml")
 endif()
 
 if (YUZU_INSTALL_UDEV_RULES)

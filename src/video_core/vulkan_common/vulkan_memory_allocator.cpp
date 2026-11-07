@@ -13,18 +13,20 @@
 #include <utility>
 #include <vector>
 
+#include <ranges>
 #include "common/alignment.h"
 #include "common/assert.h"
 #include "common/common_types.h"
 #include "common/literals.h"
 #include "common/logging.h"
-#include <ranges>
+#include "common/memory_detect.h"
+#include "common/settings.h"
+#include "video_core/gpu_logging/gpu_logging.h"
+#include "video_core/vulkan_common/image_allocation_policy.h"
 #include "video_core/vulkan_common/vma.h"
 #include "video_core/vulkan_common/vulkan_device.h"
 #include "video_core/vulkan_common/vulkan_memory_allocator.h"
 #include "video_core/vulkan_common/vulkan_wrapper.h"
-#include "video_core/gpu_logging/gpu_logging.h"
-#include "common/settings.h"
 
 namespace Vulkan {
 namespace {
@@ -209,19 +211,20 @@ MemoryAllocator::~MemoryAllocator() = default;
 vk::Image MemoryAllocator::CreateImage(const VkImageCreateInfo &ci, bool dedicated) const
 {
     const VmaAllocationCreateInfo alloc_ci = {
-            // Best fit: images freed by the thousand leave holes in the blocks, which new ones
-            // should fill before VMA takes another block.
-            .flags = static_cast<VmaAllocationCreateFlags>(VMA_ALLOCATION_CREATE_WITHIN_BUDGET_BIT |
-                                                           VMA_ALLOCATION_CREATE_STRATEGY_MIN_MEMORY_BIT) |
-                     (dedicated ? VmaAllocationCreateFlags{VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT}
-                               : VmaAllocationCreateFlags{0}),
-            .usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
-            .requiredFlags = 0,
-            .preferredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-            .memoryTypeBits = 0,
-            .pool = VK_NULL_HANDLE,
-            .pUserData = nullptr,
-            .priority = 0.f,
+        // Best fit: images freed by the thousand leave holes in the blocks, which new ones
+        // should fill before VMA takes another block.
+        .flags =
+            static_cast<VmaAllocationCreateFlags>(VMA_ALLOCATION_CREATE_WITHIN_BUDGET_BIT |
+                                                  VMA_ALLOCATION_CREATE_STRATEGY_MIN_MEMORY_BIT) |
+            (dedicated ? VmaAllocationCreateFlags{VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT}
+                       : VmaAllocationCreateFlags{0}),
+        .usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
+        .requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+        .preferredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+        .memoryTypeBits = 0,
+        .pool = VK_NULL_HANDLE,
+        .pUserData = nullptr,
+        .priority = 0.f,
     };
 
     VkImage handle{};
@@ -230,34 +233,45 @@ vk::Image MemoryAllocator::CreateImage(const VkImageCreateInfo &ci, bool dedicat
     // Images this large (title 1's sparse texture arrays reach 4.5G texels, ~23 GB) are never
     // backed: VMA would quietly place them in system memory once VRAM is full. They take the
     // unbacked sparse fallback below.
-    const u64 texels = u64{ci.extent.width} * ci.extent.height * ci.extent.depth * ci.arrayLayers;
-    const bool huge = texels > (u64{1} << 28);
+    const bool huge =
+        IsOversizedImage(ci.extent.width, ci.extent.height, ci.extent.depth, ci.arrayLayers);
     VkResult result = huge ? VK_ERROR_OUT_OF_DEVICE_MEMORY
                            : vmaCreateImage(allocator, &ci, &alloc_ci, &handle, &allocation, &alloc_info);
     if (result == VK_ERROR_OUT_OF_DEVICE_MEMORY && !huge) {
-        // Over the device memory budget (Switch 2 titles fill 8 GB cards): let the driver page
-        // it out rather than failing the draw and aborting.
-        static u32 logged{};
-        if (logged++ < 32) {
-            LOG_WARNING(Render_Vulkan,
-                        "Image {}x{}x{} ({} levels, {} layers, format {}) is over the memory "
-                        "budget; allocating it anyway",
-                        ci.extent.width, ci.extent.height, ci.extent.depth, ci.mipLevels,
-                        ci.arrayLayers, static_cast<u32>(ci.format));
-        }
         pressure_events.fetch_add(1, std::memory_order_relaxed);
-        VmaAllocationCreateInfo relaxed = alloc_ci;
-        relaxed.flags &= ~VMA_ALLOCATION_CREATE_WITHIN_BUDGET_BIT;
-        result = vmaCreateImage(allocator, &ci, &relaxed, &handle, &allocation, &alloc_info);
-    }
-    if (result == VK_ERROR_OUT_OF_DEVICE_MEMORY && !huge) {
-        // Still out of device memory: a real image in host memory (slow, but valid) beats one
-        // with nothing bound, which AMD's drivers do not survive being sampled.
+        // Keep driver budgets enforced. Host fallback also has a process limit, shared with
+        // staging buffers and other non-device-local VMA allocations.
+        const u64 physical_memory = Common::GetMemInfo().TotalPhysicalMemory;
+        const u64 host_budget = HostImageFallbackBudget(physical_memory);
+        std::array<VmaBudget, VK_MAX_MEMORY_HEAPS> budgets{};
+        vmaGetHeapBudgets(allocator, budgets.data());
+        u64 host_used{};
+        for (u32 heap = 0; heap < properties.memoryHeapCount; ++heap) {
+            if (!(properties.memoryHeaps[heap].flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT)) {
+                host_used +=
+                    (std::min)(host_budget - host_used, u64{budgets[heap].statistics.blockBytes});
+            }
+        }
         VmaAllocationCreateInfo host = alloc_ci;
-        host.flags &= ~VMA_ALLOCATION_CREATE_WITHIN_BUDGET_BIT;
         host.usage = VMA_MEMORY_USAGE_AUTO_PREFER_HOST;
+        host.requiredFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
         host.preferredFlags = 0;
-        result = vmaCreateImage(allocator, &ci, &host, &handle, &allocation, &alloc_info);
+        for (u32 type = 0; type < properties.memoryTypeCount; ++type) {
+            const u32 heap = properties.memoryTypes[type].heapIndex;
+            if (!(properties.memoryHeaps[heap].flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT)) {
+                host.memoryTypeBits |= 1U << type;
+            }
+        }
+        VkImage probe{};
+        if (host.memoryTypeBits && host_used < host_budget &&
+            device.GetDispatchLoader().vkCreateImage(*device.GetLogical(), &ci, nullptr, &probe) ==
+                VK_SUCCESS) {
+            const auto requirements = device.GetLogical().GetImageMemoryRequirements(probe);
+            device.GetDispatchLoader().vkDestroyImage(*device.GetLogical(), probe, nullptr);
+            if (HostImageFallbackFits(host_used, requirements.size, physical_memory)) {
+                result = vmaCreateImage(allocator, &ci, &host, &handle, &allocation, &alloc_info);
+            }
+        }
         static u32 host_logged{};
         if (result == VK_SUCCESS && host_logged++ < 16) {
             LOG_WARNING(Render_Vulkan,

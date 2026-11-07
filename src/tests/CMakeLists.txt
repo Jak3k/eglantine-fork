@@ -27,6 +27,7 @@ add_executable(tests
     core/nup_writer.cpp
     core/nx2_debug_server.cpp
     core/nx2_movie_pacing.cpp
+    core/presentation_interval.cpp
     core/priority_queue.cpp
     core/internal_network/network.cpp
     video_core/frame_dump_schedule.cpp
@@ -55,6 +56,10 @@ add_executable(tests
     video_core/nvn_storage_descriptor.cpp
     video_core/ampere_f2i.cpp
     video_core/ampere_ldc.cpp
+    video_core/ampere_uniform_branch.cpp
+    video_core/image_allocation_policy.cpp
+    video_core/pipeline_cache_snapshot.cpp
+    video_core/temporal_inputs.cpp
     video_core/ampere_vote.cpp
     video_core/shader_attributes.cpp
     video_core/indirect_reset.cpp

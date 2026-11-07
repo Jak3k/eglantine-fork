@@ -903,6 +903,7 @@ add_library(core STATIC
     hle/service/nvnflinger/consumer_listener.h
     hle/service/nvnflinger/graphic_buffer_producer.cpp
     hle/service/nvnflinger/graphic_buffer_producer.h
+    hle/service/nvnflinger/presentation_interval.h
     hle/service/nvnflinger/hardware_composer.cpp
     hle/service/nvnflinger/hardware_composer.h
     hle/service/nvnflinger/hos_binder_driver.cpp

@@ -41,6 +41,8 @@ inline void SetOcarinaOfTimeRecommendedSettings(Values& settings, bool global) {
         setting.SetValue(value);
     };
     session(settings.renderer_backend, RendererBackend::Vulkan);
+    session(settings.frame_pacing_mode, FramePacingMode::Target_60);
+    session(settings.oot_60hz_presentation, true);
     session(settings.resolution_setup, ResolutionSetup::Res1X);
     session(settings.gpu_accuracy, GpuAccuracy::Low);
     session(settings.use_asynchronous_shaders, true);

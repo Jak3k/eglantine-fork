@@ -566,7 +566,7 @@ struct Values {
                                                             Category::RendererAdvanced};
 
     SwitchableSetting<FramePacingMode, true> frame_pacing_mode{linkage,
-                                                               FramePacingMode::Target_Auto,
+                                                               FramePacingMode::Target_60,
                                                                FramePacingMode::Target_Auto,
                                                                FramePacingMode::Target_120,
                                                                "frame_pacing_mode",
@@ -672,8 +672,13 @@ struct Values {
     SwitchableSetting<bool> emulate_bgr565{linkage, false, "emulate_bgr565",
                                             Category::RendererHacks};
 
-    SwitchableSetting<bool> use_asynchronous_shaders{linkage, false, "use_asynchronous_shaders",
+    SwitchableSetting<bool> use_asynchronous_shaders{linkage, true, "use_asynchronous_shaders",
                                                      Category::RendererHacks};
+    SwitchableSetting<bool> use_aggressive_asynchronous_shaders{
+        linkage, false, "use_aggressive_asynchronous_shaders", Category::RendererHacks};
+
+    SwitchableSetting<bool> oot_60hz_presentation{linkage, true, "oot_60hz_presentation",
+                                                  Category::RendererAdvanced};
 
     SwitchableSetting<GpuUnswizzleSize> gpu_unswizzle_texture_size{linkage,
                                                   GpuUnswizzleSize::Large,

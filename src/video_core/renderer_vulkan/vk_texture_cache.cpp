@@ -22,9 +22,10 @@
 #include "common/literals.h"
 #include "common/settings.h"
 
-#include "video_core/renderer_vulkan/vk_texture_cache.h"
-#include "video_core/nx2.h"
 #include "video_core/gpu_logging/gpu_logging.h"
+#include "video_core/nx2.h"
+#include "video_core/renderer_vulkan/temporal_inputs.h"
+#include "video_core/renderer_vulkan/vk_texture_cache.h"
 
 #include "video_core/engines/fermi_2d.h"
 #include "video_core/renderer_vulkan/blit_image.h"
@@ -1783,6 +1784,11 @@ bool TextureCacheRuntime::TemporalUpscale(Framebuffer* dst_framebuffer, ImageVie
                                           ImageView* depth, std::array<u32, 2> render_size,
                                           std::array<f32, 2> jitter,
                                           std::array<f32, 2> motion_scale) {
+    if (!ValidTemporalInputs(render_size, jitter, motion_scale)) {
+        fsr3_last_evaluation.reset();
+        temporal_last_evaluation.reset();
+        return false;
+    }
     if (dst.Samples() != VK_SAMPLE_COUNT_1_BIT || ImageAspectMask(dst.format) != VK_IMAGE_ASPECT_COLOR_BIT) {
         return false;
     }
@@ -1798,7 +1804,9 @@ bool TextureCacheRuntime::TemporalUpscale(Framebuffer* dst_framebuffer, ImageVie
     // mantissa bits) a frame's small share of the blend rounded away, so the history never
     // converged on the detail the jittered frames add.
     constexpr VkFormat history_format = VK_FORMAT_R16G16B16A16_SFLOAT;
-    bool reset = false;
+    const auto now = std::chrono::steady_clock::now();
+    bool reset = ResetTemporalHistory(temporal_last_evaluation, now);
+    temporal_last_evaluation = now;
     if (!temporal_history.images[0] || temporal_history.format != format ||
         temporal_history.extent.width != extent.width ||
         temporal_history.extent.height != extent.height) {

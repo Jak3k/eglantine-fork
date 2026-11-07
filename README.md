@@ -1,3 +1,9 @@
+# Eglantine-Time
+
+Experimental Ocarina of Time performance fork of Eglantine. See [fork status, build instructions, and limitations](docs/Eglantine-Time.md).
+
+Linux core validation passed: 255 test cases and 7,210,175 assertions. Windows MSVC, NVIDIA DLSS runtime, game visuals, and 60 FPS performance remain unverified. See the [validation report](docs/Eglantine-Time-validation.md).
+
 <!--
 # SPDX-FileCopyrightText: Copyright 2025 Eden Emulator Project
 # SPDX-License-Identifier: GPL-3.0-or-later

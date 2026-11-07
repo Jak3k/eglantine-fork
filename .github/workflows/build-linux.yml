@@ -200,11 +200,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test -x build/release/bin/eglantine
-          test -x build/release/bin/eden-cli
-          strip build/release/bin/eglantine build/release/bin/eden-cli
+          test -x build/release/bin/eglantine-time
+          test -x build/release/bin/eglantine-time-cli
+          strip build/release/bin/eglantine-time build/release/bin/eglantine-time-cli
           tar -czf "eglantine-${SHA}-${PLATFORM}.tar.gz" \
-            -C build/release/bin eglantine eden-cli
+            -C build/release/bin eglantine-time eglantine-time-cli
           ls -la "eglantine-${SHA}-${PLATFORM}.tar.gz"
 
       # A self-contained AppImage: linuxdeploy bundles every library the two programs need except
@@ -216,8 +216,8 @@ jobs:
           VERSION_LABEL: ${{ inputs.version }}
         run: |
           set -euo pipefail
-          test -x build/release/bin/eglantine
-          test -x build/release/bin/eden-cli
+          test -x build/release/bin/eglantine-time
+          test -x build/release/bin/eglantine-time-cli
           tools="$RUNNER_TEMP/linuxdeploy"
           mkdir -p "$tools"
           arch=$(uname -m)   # aarch64 or x86_64
@@ -226,9 +226,10 @@ jobs:
           curl -fsSL -o "$tools/linuxdeploy-plugin-qt-$arch.AppImage" \
             "https://github.com/linuxdeploy/linuxdeploy-plugin-qt/releases/download/continuous/linuxdeploy-plugin-qt-$arch.AppImage"
           chmod +x "$tools"/*.AppImage
-          # The desktop file names its icon dev.eglantine.eglantine.
-          icon="$RUNNER_TEMP/dev.eglantine.eglantine.png"
+          # The desktop file names its icon dev.eglantine.time.
+          icon="$RUNNER_TEMP/dev.eglantine.time.png"
           cp dist/Eglantine.png "$icon"
+          cp dist/dev.eden_emu.eden.desktop "$RUNNER_TEMP/dev.eglantine.time.desktop"
           export APPIMAGE_EXTRACT_AND_RUN=1
           export QMAKE="$QT_ROOT_DIR/bin/qmake"
           # Include Wayland platform plugins and their graphics/shell integrations.
@@ -240,9 +241,9 @@ jobs:
           export OUTPUT="$LDAI_OUTPUT"
           export ARCH="$arch"
           "$tools/linuxdeploy-$arch.AppImage" --appdir AppDir \
-            --executable build/release/bin/eglantine \
-            --executable build/release/bin/eden-cli \
-            --desktop-file dist/dev.eden_emu.eden.desktop \
+            --executable build/release/bin/eglantine-time \
+            --executable build/release/bin/eglantine-time-cli \
+            --desktop-file "$RUNNER_TEMP/dev.eglantine.time.desktop" \
             --icon-file "$icon" \
             --plugin qt \
             --output appimage

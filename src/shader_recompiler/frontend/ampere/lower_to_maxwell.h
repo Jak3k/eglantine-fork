@@ -88,6 +88,8 @@ inline RegisterPressure PrepareRegisterPressure(const Instruction& input, u32 re
     const auto operand = [&](u32 bit, u32 count = 1) { operands.push_back({bit, count}); };
     const u32 opcode = input.Bits(0, 12);
     switch (opcode) {
+    case 0x547:
+        break; // BRA.U has no GPR operands.
     case 0x802: case 0xa02: case 0xb08: case 0xd08: operand(16); break;
     case 0x804: case 0x80c: operand(24); break;
     case 0x805: operand(16, 2); break;
@@ -224,7 +226,7 @@ inline LoweredProgram LowerToMaxwellWith(std::span<const Instruction> code, u32 
     });
     for (const auto& instruction : code) {
         const u32 op = instruction.Bits(0, 12);
-        uses_uniform_bank |= op == 0x4a4 || op == 0x2bf || op == 0x499;
+        uses_uniform_bank |= op == 0x4a4 || op == 0x2bf || op == 0x499 || op == 0x547;
         uses_uniform_bank |= op == 0x3c4 || op == 0x2bd || op == 0x896 || op == 0xf60 || op == 0xc11 || op == 0xd08 || op == 0xc0c || op == 0x986 || op == 0x9a8 || op == 0xc12 || op == 0xc17 || op == 0xe24 || op == 0xc24 || op == 0xd00 || op == 0xd09 || op == 0x9c3 || op == 0xc45 || op == 0x2a4 || op == 0x891 || op == 0x890 || op == 0x290 || op == 0x28c || op == 0x88c || op == 0x287 || op == 0x887 || op == 0x958 || op == 0xab9 || op == 0xabb || op == 0x899 || op == 0xc20 || op == 0xe21 || op == 0xe23 || op == 0xc02 ||
                              op == 0x886 || op == 0x3c2 || op == 0xc82 || op == 0x882 || op == 0x292 || op == 0x892 || op == 0x291 || op == 0x981 || op == 0xc13 || op == 0xc10 || op == 0xc23 || op == 0x526 || op == 0x2be || op == 0x8a4 || op == 0xd05 || (op == 0x984 && instruction.Bits(91, 1)) || (op == 0x988 && instruction.Bits(91, 1)) || op == 0x89c || op == 0x883 || op == 0x2a5 || op == 0xd06 || op == 0xf63 || op == 0xf66 || op == 0xf69 || op == 0xc0b || op == 0x8a5 || op == 0x299 || op == 0xc09 || op == 0xc07 || op == 0xf6c || (op == 0x81c && instruction.Bits(67, 1)) || op == 0xc0a ||
                              (op == 0x83b && instruction.Bits(91, 1));
@@ -270,8 +272,9 @@ inline LoweredProgram LowerToMaxwellWith(std::span<const Instruction> code, u32 
             }
             // RET, BRA, NOP and ISETP/FSETP (predicate outputs) have no destination GPR; bits 16..23
             // are not a write to R0. IMAD.WIDE writes a register pair.
-            const bool no_destination = opcode == 0x950 || opcode == 0x947 || opcode == 0x918 ||
-                                        (opcode & 0x1ff) == 0x00c || (opcode & 0x1ff) == 0x00b;
+            const bool no_destination = opcode == 0x950 || opcode == 0x947 || opcode == 0x547 ||
+                                        opcode == 0x918 || (opcode & 0x1ff) == 0x00c ||
+                                        (opcode & 0x1ff) == 0x00b;
             const bool pair = opcode == 0x225 || opcode == 0x625 || opcode == 0x825;
             if (active_link && !no_destination &&
                 (insn.Bits(16, 8) == *active_link || (pair && insn.Bits(16, 8) + 1 == *active_link)))
@@ -3430,9 +3433,10 @@ inline LoweredProgram LowerToMaxwellWith(std::span<const Instruction> code, u32 
                     link = candidate.Bits(16, 8);
                     break;
                 }
-                if (prior_opcode == 0x947 || prior_opcode == 0x949 || prior_opcode == 0x958 ||
-                    prior_opcode == 0x944 || prior_opcode == 0x950 || prior_opcode == 0x94d ||
-                    prior_opcode == 0x945 || prior_opcode == 0x941 || prior_opcode == 0x942)
+                if (prior_opcode == 0x947 || prior_opcode == 0x547 || prior_opcode == 0x949 ||
+                    prior_opcode == 0x958 || prior_opcode == 0x944 || prior_opcode == 0x950 ||
+                    prior_opcode == 0x94d || prior_opcode == 0x945 || prior_opcode == 0x941 ||
+                    prior_opcode == 0x942)
                     break;
                 const u32 written_reg = candidate.Bits(16, 8);
                 written[written_reg] = true;
@@ -3493,6 +3497,44 @@ inline LoweredProgram LowerToMaxwellWith(std::span<const Instruction> code, u32 
             // independently, so all three are no-ops (a SYNC would wrongly jump, and a branch
             // out of a lowered SSY region would leave its token on Eden's flow stack).
             break;
+        case 0x547: { // BRA.U: the branch condition is UPn, separate from the execution guard.
+            if (insn.Bits(32, 2) != 1 || !insn.Bits(91, 1) || insn.Bits(87, 4) != 7 ||
+                insn.Bits(28, 4))
+                return fail(index, "native uniform branch mode");
+            const u32 condition = insn.Bits(24, 4);
+            if (condition == 15)
+                break; // !UPT
+            const u64 raw = (insn.words[1] & ~3U) | (u64{insn.words[2] & 0x3ffff} << 32);
+            const s64 relative = static_cast<s64>(raw << 14) >> 14;
+            const s64 target = s64{index} * 16 + 16 + relative;
+            if (target < 0 || target % 16)
+                return fail(index, "native branch destination alignment");
+            if (condition == 7) {
+                relocations.push_back({static_cast<u32>(result.instructions.size()), target / 16});
+                emit(0xe24000000000000fULL | predicate);
+                if (computed_branch && target == s64{index} * 16 && native_predicate == 7)
+                    return finish(index);
+                break;
+            }
+            if (native_predicate != 7) {
+                relocations.push_back({static_cast<u32>(result.instructions.size()), index + 1});
+                emit(0xe24000000000000fULL | (u64{native_predicate ^ 8U} << 16));
+            }
+            const u32 slot = 6 - (condition & 7);
+            const u32 mask = 1U << slot;
+            save_predicate(mask);
+            emit(0x38f0000000070000ULL | (u64{239} << 8) | (u64{mask} << 20));
+            const u32 untaken = static_cast<u32>(result.instructions.size());
+            emit(0xe24000000000000fULL | (u64{(slot | (condition & 8)) ^ 8U} << 16));
+            restore_predicate(mask);
+            relocations.push_back({static_cast<u32>(result.instructions.size()), target / 16});
+            emit(0xe24000000007000fULL);
+            // Restore the guest predicate on both paths, before leaving this expansion.
+            relocations.push_back(
+                {untaken, index, false, static_cast<u32>(result.instructions.size())});
+            restore_predicate(mask);
+            break;
+        }
         case 0x947: { // BRA
             // The offset's two low bits: .DIV (2) branches when the warp has diverged, .CONV (3)
             // when its active threads are the mask in the uniform register at 24-31 (bit 91;

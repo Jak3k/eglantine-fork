@@ -62,3 +62,20 @@ TEST_CASE("Ampere uniform constant loads retain narrow sizes", "[video_core][amp
     load.words[1] |= 1U << 6;
     REQUIRE_FALSE(static_cast<bool>(LowerToMaxwell(std::array{load, exit})));
 }
+
+TEST_CASE("Ampere indexed ULDC.U16 keeps byte offsets and unsigned width", "[video_core][ampere]") {
+    using Shader::Ampere::Instruction;
+    const Instruction exit{{0x0000794d, 0, 0x03800000, 0}};
+    // UR4, c[6][UR2 + 0x22]: halfword-aligned, but not word-aligned.
+    const Instruction load{{0x02047abb, 0x01800880, 0x08000400, 0}};
+    const auto lowered = Shader::Ampere::LowerToMaxwell(std::array{load, exit});
+    INFO(lowered.error);
+    REQUIRE(static_cast<bool>(lowered));
+    const auto ldc = std::find_if(lowered.instructions.begin(), lowered.instructions.end(),
+                                  [](u64 word) { return (word >> 52) == 0xef9; });
+    REQUIRE(ldc != lowered.instructions.end());
+    CHECK(((*ldc >> 48) & 7) == 2);
+    CHECK(((*ldc >> 20) & 0xffff) == 0x22);
+    CHECK(((*ldc >> 36) & 0x1f) == 6);
+    CHECK(((*ldc >> 8) & 0xff) == 218); // UR2's mirror
+}

@@ -11,12 +11,12 @@ SPDX-License-Identifier: CC0-1.0
 -->
 
 <component type="desktop-application">
-  <id>dev.eden_emu.eden</id>
+  <id>dev.eglantine.time</id>
   <metadata_license>CC0-1.0</metadata_license>
-  <name>eden</name>
-  <summary>Nintendo Switch emulator</summary>
+  <name>Eglantine-Time</name>
+  <summary>Ocarina of Time focused Switch 2 emulator fork</summary>
   <description>
-    <p>Eden is a free and open-source (FOSS) Switch 1 emulator started by developer Camille LaVey. Written in C++, with builds for Windows, Linux, macOS, Android, FreeBSD and more.</p>
+    <p>Eglantine-Time is an experimental Ocarina of Time focused fork of Eglantine for Nintendo Switch 2 titles.</p>
   </description>
   <categories>
     <category>Game</category>
@@ -35,10 +35,10 @@ SPDX-License-Identifier: CC0-1.0
   <url type="contact">https://discord.gg/HstXbPch7X</url>
   <url type="vcs-browser">https://git.eden-emu.dev</url>
   <url type="contribute">https://git.eden-emu.dev/eden-emu/eden</url>
-  <launchable type="desktop-id">dev.eden_emu.eden.desktop</launchable>
+  <launchable type="desktop-id">dev.eglantine.time.desktop</launchable>
   <provides>
-    <binary>yuzu</binary>
-    <binary>yuzu-cmd</binary>
+    <binary>eglantine-time</binary>
+    <binary>eglantine-time-cli</binary>
   </provides>
   <supports>
     <control>pointing</control>
