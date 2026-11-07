@@ -15,7 +15,7 @@ try {
 }
 
 $VulkanSDKVer = "1.4.341.1"
-if ((Get-WmiObject -Class Win32_ComputerSystem).SystemType -match '(x64)' -eq "True") {
+if ((Get-CimInstance -ClassName Win32_ComputerSystem).SystemType -match 'x64') {
     $VulkanSDKArch = "X64"
     $VulkanSDKOs = "windows"
 } else {
@@ -26,6 +26,11 @@ $VULKAN_SDK = "C:/VulkanSDK/$VulkanSDKVer"
 $ExeFile = "vulkansdk-windows-$VulkanSDKArch-$VulkanSDKVer.exe"
 $Uri = "https://sdk.lunarg.com/sdk/download/$VulkanSDKVer/$VulkanSDKOs/$ExeFile"
 $Destination = "./$ExeFile"
+
+if ("$env:GITHUB_ACTIONS" -eq "true") {
+    echo "VULKAN_SDK=$VULKAN_SDK" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+    echo "$VULKAN_SDK/Bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+}
 
 # Check if Vulkan SDK is already installed
 if (Test-Path $VULKAN_SDK) {
@@ -51,7 +56,3 @@ if ($ExitCode -ne 0) {
 
 echo "Finished installing Vulkan SDK $VulkanSDKVer"
 
-if ("$env:GITHUB_ACTIONS" -eq "true") {
-    echo "VULKAN_SDK=$VULKAN_SDK" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-    echo "$VULKAN_SDK/Bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-}

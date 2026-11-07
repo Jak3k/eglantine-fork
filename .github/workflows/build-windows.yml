@@ -104,6 +104,7 @@ jobs:
         run: >-
           cmake -S . -B build/release -G Ninja
           -DCMAKE_BUILD_TYPE=Release
+          -DENABLE_OPENGL=OFF
           -DBUILD_TESTING=ON
           -DYUZU_TESTS=ON
           -DYUZU_CMD=ON
@@ -139,7 +140,7 @@ jobs:
               throw "build/release/bin/$exe was not produced"
             }
           }
-          windeployqt --release --no-translations build/release/bin/eglantine-time.exe
+          windeployqt --release --compiler-runtime --no-translations build/release/bin/eglantine-time.exe
 
       # The artifact is the bin folder itself: GitHub zips artifacts on download, and uploading a
       # zip gave a zip inside a zip. The release job zips it once for the release.
