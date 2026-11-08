@@ -842,7 +842,7 @@ void PipelineCache::LoadDiskResources(u64 title_id, std::stop_token stop_loading
     if (title_id == 0x0400C3F00006E000ULL) {
         base_dir /= "mkw_zero_depth_v1";
     }
-    if (!Common::FS::CreateDir(shader_dir) || !Common::FS::CreateDir(base_dir)) {
+    if (!Common::FS::CreateDir(shader_dir) || !Common::FS::CreateDirs(base_dir)) {
         LOG_ERROR(Common_Filesystem, "Failed to create pipeline cache directories");
         return;
     }

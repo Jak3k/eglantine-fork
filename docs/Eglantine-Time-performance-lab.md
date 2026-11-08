@@ -1,6 +1,6 @@
 # Zelda performance experiments
 
-Changes on `oot-performance-lab` are experiments. Windows and Linux CI compile, test and package artifacts; automatic release publication is restricted to `eglantine-time`.
+Changes on `oot-performance-lab` are experiments. Windows and Linux CI compile, test and package artifacts; the owner subsequently requested downloadable Windows and Linux test releases; both workflows publish clearly marked prereleases after CI checks.
 
 ## First candidate
 
@@ -19,3 +19,17 @@ The r/emulation discussion supplied context but no reproducible settings benchma
 https://www.reddit.com/r/emulation/comments/1xofuoa/zelda_ocarina_of_time_remake_reportedly_dumped/
 
 Assisted by Codex (research, port, tests and CI preparation); owner authorized work on this fork.
+
+## lichii-custom follow-up
+
+Reviewed https://github.com/tomk134/lichii-custom at f5f6ced676d82ccff22340476947c5998d1eec23 (GPL-3.0-or-later). Ported its SSA rewrite optimization from ac4191c6a909aa80885803c785e2980fb961b926, credited there to monarchy/Lichii-performance: resolve register-copy identities, avoid allocation for local definitions and reuse traversal storage. Existing shader regression tests exercise the resulting compiler.
+
+The fork's 5e24f7577b11eeca8d33d3ec829b85166757afa1 deliberately removes Zelda's 60 FPS pacing. We retain pacing: a dynamic-step floor can otherwise accelerate simulation above 60 FPS. Also reject the built-in Dynamic FPS patch under scaled CPU clocks. See Eglantine-Time-dynamic-fps.md for guards and limitations. Fake occlusion and skipped rendering are not enabled by this port.
+
+Local first CPU-set experiment: same house scene 36.63 FPS control, 36.70 pinned; no convincing benefit, so no pinning defaults added. Normal-clock control averaged 37.52 FPS. These are single-run six-sample means, not statistical proof.
+
+Mario Kart World: reproduced failure to initialize the nested mkw_zero_depth_v1 cache on a fresh title directory. Use recursive directory creation so pipeline caching can initialize. First texture-budget comparison (23.16 vs 29.17 FPS) is confounded by this cache issue; a warmed control is required before adopting a larger budget.
+
+No shader catalogue entries were added: no new native programs were identified, both local catalogue directories are absent and EDEN_NX2_CATALOG_DIR is unset. Python aliases have no installed interpreter.
+
+Assisted by Codex (research, adaptation, tests and packaging); publication requested by repository owner.
