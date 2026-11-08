@@ -10,7 +10,8 @@ Base: `Djihads80/Eglantine`, branch `nx2`, commit `ae9d3eb8d224e85b9fc4ec1df35f2
 - All 13 changed XML/UI/plist/manifest files parse; all three build workflow YAML files parse.
 - Patch applies cleanly to an archived clean base; reverse application also checks cleanly against the working tree.
 - Full Linux core build and test run: **passed: 255 test cases, 7,210,175 assertions**. CTest passed in 9.14 seconds.
-- Windows MSVC build, NVIDIA DLSS runtime and actual game performance/visual validation: **not run**. The environment is Linux and no game/runtime capture is available.
+- Windows MSVC / Vulkan build: **not yet passing**. The first two GitHub Actions runs exposed signed/unsigned comparisons in existing core and shader tests. Those comparisons are corrected; the Windows rebuild still needs to pass compilation, CTest and runtime packaging. See [the Windows handoff](Eglantine-Time-handoff.md) for exact status and continuation steps.
+- Latest shader-test corrections pass locally: **4 test cases, 50,888 assertions**. NVIDIA DLSS runtime and actual game performance/visual validation remain **not run**; no game/runtime capture is available in this Linux environment.
 
 The Linux headless configuration uses Vulkan, bundled SDL/FFmpeg, tests enabled, and Qt/OpenGL/audio-device/web/libusb frontends disabled. CMake 4.4.4, Ninja 1.13.2 and glslang 16.6.0 are installed in workspace directories. The bundled Linux FFmpeg archive required explicit linkage to the available system VA-API, DRM and X11 libraries. Build and dependency caches are excluded from the source archive.
 

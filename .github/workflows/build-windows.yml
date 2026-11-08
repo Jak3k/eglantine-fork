@@ -38,7 +38,8 @@ jobs:
     # Might also need to upgrade that one
     runs-on: windows-2022
     env:
-      PLATFORM: windows-x86_64
+      # MSVC setup overwrites PLATFORM; keep the compiler cache identity separate.
+      EGLANTINE_CACHE_PLATFORM: x64
       SCCACHE_DIR: ${{ github.workspace }}/.sccache
       SCCACHE_CACHE_SIZE: 1000M
     steps:
@@ -52,7 +53,7 @@ jobs:
         if: hashFiles('.github/actions/setup-build/action.yml') != ''
         uses: ./.github/actions/setup-build
         with:
-          platform: ${{ env.PLATFORM }}
+          platform: ${{ env.EGLANTINE_CACHE_PLATFORM }}
           sha: ${{ inputs.sha }}
           refspec: ${{ inputs.refspec }}
           tag: ${{ inputs.tag }}
@@ -62,7 +63,7 @@ jobs:
         if: hashFiles('.github/actions/setup-build/action.yml') == ''
         uses: Djihads80/Eglantine/.github/actions/setup-build@583b125d5a2a330bc3e04fed213b908db5f6a8f2
         with:
-          platform: ${{ env.PLATFORM }}
+          platform: ${{ env.EGLANTINE_CACHE_PLATFORM }}
           sha: ${{ inputs.sha }}
           refspec: ${{ inputs.refspec }}
           tag: ${{ inputs.tag }}
@@ -133,7 +134,7 @@ jobs:
             echo 'No test object targets were found'
             exit 1
           fi
-          cmake --build build/release --target "${test_objects[@]}" --parallel
+          cmake --build build/release --target "${test_objects[@]}" --parallel -- -k 0
 
       - name: Build
         shell: bash
@@ -174,7 +175,7 @@ jobs:
           path: |
             .ccache
             .sccache
-          key: objects-v1-${{ env.PLATFORM }}--${{ inputs.sha }}
+          key: objects-v1-${{ env.EGLANTINE_CACHE_PLATFORM }}--${{ inputs.sha }}
 
       - name: Save dependency cache after failure
         if: >-
