@@ -23,3 +23,102 @@ jobs:
       release: false
       nightly: false
       pgo: none
+
+  verify-package:
+    needs: windows
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v8
+        with:
+          name: eglantine-windows-x86_64-${{ github.sha }}
+          path: package
+      - name: Verify portable binaries and runtime
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          foreach ($name in 'eglantine-time.exe', 'eglantine-time-cli.exe', 'Qt6Core.dll', 'Qt6Gui.dll', 'Qt6Widgets.dll', 'Qt6Charts.dll', 'platforms/qwindows.dll') {
+            if (-not (Test-Path "package/$name")) { throw "Missing runtime file: $name" }
+          }
+          $dllRuntime = (Test-Path package/msvcp140.dll) -and (Test-Path package/vcruntime140.dll)
+          $installerRuntime = @(Get-ChildItem package -Recurse -Filter '*redist*x64*.exe').Count -gt 0
+          if (-not ($dllRuntime -or $installerRuntime)) { throw 'Missing MSVC runtime DLLs or x64 redistributable installer' }
+          Get-ChildItem package -Recurse -File | Where-Object Extension -In '.exe', '.dll' | ForEach-Object {
+            if ($_.Name -like '*redist*') { return }
+            $bytes = [IO.File]::ReadAllBytes($_.FullName)
+            if ($bytes.Length -lt 64 -or [BitConverter]::ToUInt16($bytes, 0) -ne 0x5A4D) { throw "Invalid executable: $_" }
+            $offset = [BitConverter]::ToInt32($bytes, 0x3c)
+            if ($offset -lt 0 -or $offset + 6 -gt $bytes.Length -or [BitConverter]::ToUInt32($bytes, $offset) -ne 0x4550 -or [BitConverter]::ToUInt16($bytes, $offset + 4) -ne 0x8664) { throw "Not an x64 PE binary: $_" }
+          }
+          New-Item -ItemType Directory -Force verification | Out-Null
+          $env:QT_QPA_PLATFORM = 'offscreen'
+          $env:QT_PLUGIN_PATH = (Resolve-Path package).Path
+          $env:PATH = "$env:SystemRoot\System32;$env:SystemRoot"
+          foreach ($name in 'eglantine-time.exe', 'eglantine-time-cli.exe') {
+            $process = Start-Process -FilePath (Resolve-Path "package/$name") -ArgumentList '--help' -WorkingDirectory (Resolve-Path package) -WindowStyle Hidden -PassThru -RedirectStandardOutput "verification/$name.stdout.txt" -RedirectStandardError "verification/$name.stderr.txt"
+            $timeout = if ($name -eq 'eglantine-time.exe') { 10000 } else { 30000 }
+            if (-not $process.WaitForExit($timeout)) {
+              $process.Kill()
+              $process.WaitForExit()
+              if ($name -eq 'eglantine-time.exe') { continue }
+              throw "$name startup timed out"
+            }
+            if ($process.ExitCode -ne 0) {
+              Get-Content "verification/$name.stderr.txt"
+              throw "$name startup failed: $($process.ExitCode)"
+            }
+          }
+      - name: Package licenses, source information and checksum
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Copy-Item LICENSE.txt, cpmfile.json -Destination package
+          Copy-Item LICENSES -Destination package -Recurse
+          Copy-Item docs/Eglantine-Time.md -Destination package
+          @"
+          Source commit: $env:GITHUB_SHA
+          Source: https://github.com/$env:GITHUB_REPOSITORY/tree/$env:GITHUB_SHA
+          Dependency versions and source repositories: cpmfile.json
+          Build and CTest: https://github.com/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID
+          Package verification: x64 PE files, required Qt/runtime files, CLI --help and a bounded 10-second offscreen GUI startup (no game).
+          Game rendering, DLSS and FPS performance have not been validated.
+          If runtime DLLs are absent, install the bundled x64 Microsoft Visual C++ redistributable.
+          Codex assisted with build fixes and packaging; the repository owner authorized publication.
+          "@ | Set-Content package/SOURCE.txt -Encoding utf8
+          New-Item -ItemType Directory -Force release-assets | Out-Null
+          $zip = "release-assets/eglantine-time-windows-x64-$($env:GITHUB_SHA.Substring(0,12)).zip"
+          Compress-Archive -Path package/* -DestinationPath $zip
+          git archive --format=zip --output=release-assets/eglantine-time-source.zip HEAD
+          if ($LASTEXITCODE -ne 0) { throw 'Source archive failed' }
+          Copy-Item verification -Destination release-assets -Recurse
+          Get-ChildItem release-assets -Filter '*.zip' | ForEach-Object {
+            "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower())  $($_.Name)"
+          } | Set-Content release-assets/SHA256SUMS.txt -Encoding ascii
+      - uses: actions/upload-artifact@v7
+        with:
+          name: verified-windows-release-${{ github.sha }}
+          path: release-assets/
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    needs: verify-package
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: verified-windows-release-${{ github.sha }}
+          path: release-assets
+      - name: Publish experimental Windows prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="eglantine-time-windows-${GITHUB_SHA:0:12}"
+          printf 'Experimental Windows x64 / Vulkan build from commit `%s`.\n\nMSVC compilation, core/shader CTest, package checks, and both executable startup checks passed. Game rendering, DLSS, and FPS are untested.\n\nBuild: https://github.com/%s/actions/runs/%s\n\nCodex assisted with build fixes and packaging; publication was authorized by the repository owner.\n' "$GITHUB_SHA" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" > release-notes.md
+          gh release create "$tag" release-assets/*.zip release-assets/SHA256SUMS.txt --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "Eglantine-Time experimental Windows ${GITHUB_SHA:0:12}" --notes-file release-notes.md --prerelease --latest=false
