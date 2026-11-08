@@ -6,7 +6,6 @@
 
 #include <algorithm>
 #include <array>
-#include <cstdlib>
 #include <vector>
 
 #include "common/alignment.h"
@@ -586,64 +585,26 @@ bool MemoryManager::IsMemoryDirty(GPUVAddr gpu_addr, size_t size,
 }
 
 size_t MemoryManager::MaxContinuousRange(GPUVAddr gpu_addr, size_t size) const {
-    // Keep the direct-mapped fast path, with a small victim cache for ranges that hash to
-    // the same slot. Every hit must still match the address space and its mapping serial.
+    // Native storage buffers ask this for up to 8 MiB on each bind, ~70,000 times a second in
+    // title 1's forest (17% of the GPU thread walking pages): keep answers per thread until the
+    // page table changes. Ocarina of Time asks ~220,000 times a second for more buffers than 64
+    // entries hold: a ninth missed and walked ~7 MiB each, 44% of the GPU thread.
     struct Entry {
-        size_t owner{};
-        GPUVAddr gpu_addr{};
-        size_t size{};
-        u64 serial{};
-        size_t result{};
+        size_t owner;
+        GPUVAddr gpu_addr;
+        size_t size;
+        u64 serial;
+        size_t result;
     };
     thread_local std::vector<Entry> cache(4096);
-    thread_local std::array<Entry, 8> victims{};
-    thread_local size_t victim_cursor{};
-    static const bool use_victims = [] {
-        const char* value = std::getenv("EDEN_NX2_RANGE_CACHE_VICTIMS");
-        return value == nullptr || value[0] != '0';
-    }();
-    static const bool statistics = std::getenv("EDEN_NX2_RANGE_CACHE_STATS") != nullptr;
-    struct Counters {
-        u64 direct{};
-        u64 victim{};
-        u64 missed{};
-    };
-    thread_local Counters counters{};
-    const auto record = [&](u64 Counters::*field) {
-        if (statistics) {
-            ++(counters.*field);
-            if ((counters.direct + counters.victim + counters.missed) % (1ULL << 20) == 0) {
-                LOG_INFO(HW_GPU, "GPU range cache: direct={} victim={} missed={}",
-                         counters.direct, counters.victim, counters.missed);
-            }
-        }
-    };
-    const size_t owner = unique_identifier + 1;
     const u64 serial = map_serial.load(std::memory_order_acquire);
-    const auto matches = [&](const Entry& candidate) {
-        return candidate.owner == owner && candidate.gpu_addr == gpu_addr &&
-               candidate.size == size && candidate.serial == serial;
-    };
     Entry& entry = cache[((gpu_addr ^ size) * 0x9E3779B97F4A7C15ULL) >> 52];
-    if (matches(entry)) {
-        record(&Counters::direct);
+    if (entry.owner == unique_identifier + 1 && entry.gpu_addr == gpu_addr && entry.size == size &&
+        entry.serial == serial) {
         return entry.result;
     }
-    if (use_victims) {
-        for (Entry& victim : victims) {
-            if (matches(victim)) {
-                std::swap(entry, victim);
-                record(&Counters::victim);
-                return entry.result;
-            }
-        }
-    }
     const size_t result = MaxContinuousRangeUncached(gpu_addr, size);
-    if (use_victims) {
-        victims[victim_cursor++ % victims.size()] = entry;
-    }
-    entry = {owner, gpu_addr, size, serial, result};
-    record(&Counters::missed);
+    entry = {unique_identifier + 1, gpu_addr, size, serial, result};
     return result;
 }
 

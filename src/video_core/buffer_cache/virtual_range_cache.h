@@ -30,7 +30,9 @@ public:
     static constexpr size_t MAX_ENTRIES = 8192;
     static constexpr size_t MAX_DEFERRED = 4096;
 
-    const VirtualSegments* Query(Tegra::MemoryManager& memory, GPUVAddr gpu_addr, u32 size) {
+    /// A single segment may cover more than the requested range; callers only use split lists.
+    template <typename Memory = Tegra::MemoryManager>
+    const VirtualSegments* Query(Memory& memory, GPUVAddr gpu_addr, u32 size) {
         if (has_deferred.load(std::memory_order_acquire)) {
             ApplyDeferred();
         }
@@ -40,9 +42,13 @@ public:
         const size_t as_id = memory.GetID();
         const u64 key = MakeKey(as_id, gpu_addr);
         const auto it = entries.find(key);
-        if (it != entries.end() && it->second.as_id == as_id &&
-            it->second.gpu_addr == gpu_addr && it->second.size == size) {
-            return &it->second.segments;
+        if (it != entries.end() && it->second.as_id == as_id && it->second.gpu_addr == gpu_addr) {
+            const Entry& cached = it->second;
+            // A prefix of a contiguous range is contiguous too. Keep the longest walk when
+            // a title binds one storage address with alternating sizes.
+            if (cached.size == size || (cached.segments.size() == 1 && size < cached.size)) {
+                return &cached.segments;
+            }
         }
         Entry entry{};
         entry.as_id = as_id;

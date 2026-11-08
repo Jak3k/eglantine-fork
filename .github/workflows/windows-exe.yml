@@ -3,7 +3,7 @@ name: Windows EXE package
 on:
   workflow_dispatch:
   push:
-    branches: [eglantine-time]
+    branches: [eglantine-time, oot-performance-lab]
     paths-ignore:
       - 'docs/**'
       - '.github/workflows/linux-exe.yml'
@@ -21,7 +21,7 @@ jobs:
     with:
       sha: ${{ github.sha }}
       version: eglantine-time
-      refspec: eglantine-time
+      refspec: ${{ github.ref_name }}
       tag: eglantine-time
       release: false
       nightly: false
@@ -107,6 +107,7 @@ jobs:
           retention-days: 7
 
   publish:
+    if: github.ref == 'refs/heads/eglantine-time'
     needs: verify-package
     runs-on: ubuntu-latest
     permissions:

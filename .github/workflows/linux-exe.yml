@@ -3,7 +3,7 @@ name: Linux x64 package
 on:
   workflow_dispatch:
   push:
-    branches: [eglantine-time]
+    branches: [eglantine-time, oot-performance-lab]
     paths-ignore:
       - 'docs/**'
       - '.github/workflows/windows-exe.yml'
@@ -31,7 +31,7 @@ jobs:
         with:
           platform: linux-x86_64
           sha: ${{ github.sha }}
-          refspec: eglantine-time
+          refspec: ${{ github.ref_name }}
           tag: eglantine-time
           release: false
           save-cache: true
@@ -121,6 +121,7 @@ jobs:
           if-no-files-found: ignore
 
   publish:
+    if: github.ref == 'refs/heads/eglantine-time'
     needs: build
     runs-on: ubuntu-latest
     permissions:
