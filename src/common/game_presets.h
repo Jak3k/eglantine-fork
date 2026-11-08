@@ -9,6 +9,12 @@ namespace Settings {
 inline constexpr u64 MarioKartWorldProgramId = 0x0400C3F00006E000ULL;
 inline constexpr u64 OcarinaOfTimeProgramId = 0x0400486024DEC000;
 
+#if defined(__linux__)
+inline constexpr GpuAccuracy RecommendedGpuAccuracy = GpuAccuracy::High;
+#else
+inline constexpr GpuAccuracy RecommendedGpuAccuracy = GpuAccuracy::Low;
+#endif
+
 inline void SetMarioKartWorldRecommendedSettings(Values& settings, bool global) {
     const auto session = [global](auto& setting, auto value) {
         setting.SetGlobal(global);
@@ -16,7 +22,7 @@ inline void SetMarioKartWorldRecommendedSettings(Values& settings, bool global) 
     };
     session(settings.renderer_backend, RendererBackend::Vulkan);
     session(settings.resolution_setup, ResolutionSetup::Res1X);
-    session(settings.gpu_accuracy, GpuAccuracy::Low);
+    session(settings.gpu_accuracy, RecommendedGpuAccuracy);
     session(settings.use_asynchronous_shaders, true);
     session(settings.astc_recompression, AstcRecompression::Bc3);
     session(settings.vram_usage_mode, VramUsageMode::Conservative);
@@ -43,8 +49,10 @@ inline void SetOcarinaOfTimeRecommendedSettings(Values& settings, bool global) {
     session(settings.renderer_backend, RendererBackend::Vulkan);
     session(settings.frame_pacing_mode, FramePacingMode::Target_60);
     session(settings.oot_60hz_presentation, true);
+    session(settings.cpu_clock, CpuClock::Normal);
+    session(settings.sync_core_speed, false);
     session(settings.resolution_setup, ResolutionSetup::Res1X);
-    session(settings.gpu_accuracy, GpuAccuracy::Low);
+    session(settings.gpu_accuracy, RecommendedGpuAccuracy);
     session(settings.use_asynchronous_shaders, true);
     session(settings.astc_recompression, AstcRecompression::Bc3);
     session(settings.vram_usage_mode, VramUsageMode::Conservative);

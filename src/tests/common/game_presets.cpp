@@ -5,6 +5,11 @@
 #include "common/game_presets.h"
 
 namespace {
+#if defined(__linux__)
+constexpr auto ExpectedGpuAccuracy = Settings::GpuAccuracy::High;
+#else
+constexpr auto ExpectedGpuAccuracy = Settings::GpuAccuracy::Low;
+#endif
 void SetConflictingPreferences(Settings::Values& settings, bool per_game) {
     const auto set = [per_game](auto& setting, auto value) {
         setting.SetGlobal(!per_game);
@@ -25,7 +30,7 @@ void SetConflictingPreferences(Settings::Values& settings, bool per_game) {
 void CheckPreset(const Settings::Values& settings) {
     CHECK(settings.renderer_backend.GetValue() == Settings::RendererBackend::Vulkan);
     CHECK(settings.resolution_setup.GetValue() == Settings::ResolutionSetup::Res1X);
-    CHECK(settings.gpu_accuracy.GetValue() == Settings::GpuAccuracy::Low);
+    CHECK(settings.gpu_accuracy.GetValue() == ExpectedGpuAccuracy);
     CHECK(settings.use_asynchronous_shaders.GetValue());
     CHECK(settings.astc_recompression.GetValue() == Settings::AstcRecompression::Bc3);
     CHECK(settings.vram_usage_mode.GetValue() == Settings::VramUsageMode::Conservative);
@@ -61,12 +66,17 @@ TEST_CASE("Ocarina preset restores global pacing preferences after the session",
     auto settings = std::make_unique<Settings::Values>();
     settings->frame_pacing_mode.SetValue(Settings::FramePacingMode::Target_Auto);
     settings->oot_60hz_presentation.SetValue(false);
+    settings->cpu_clock.SetValue(Settings::CpuClock::Overclock);
+    settings->sync_core_speed.SetValue(true);
     CHECK_FALSE(
         Settings::ApplyOcarinaOfTimePreset(*settings, Settings::MarioKartWorldProgramId, true));
     CHECK(settings->frame_pacing_mode.GetValue() == Settings::FramePacingMode::Target_Auto);
     REQUIRE(Settings::ApplyOcarinaOfTimePreset(*settings, Settings::OcarinaOfTimeProgramId, true));
     CHECK(settings->frame_pacing_mode.GetValue() == Settings::FramePacingMode::Target_60);
     CHECK(settings->oot_60hz_presentation.GetValue());
+    CHECK(settings->gpu_accuracy.GetValue() == ExpectedGpuAccuracy);
+    CHECK(settings->cpu_clock.GetValue() == Settings::CpuClock::Normal);
+    CHECK_FALSE(settings->sync_core_speed.GetValue());
     CHECK(settings->frame_pacing_mode.GetValue(true) == Settings::FramePacingMode::Target_Auto);
     CHECK_FALSE(settings->oot_60hz_presentation.GetValue(true));
     for (const auto& restore : settings->linkage.restore_functions) {
@@ -74,6 +84,8 @@ TEST_CASE("Ocarina preset restores global pacing preferences after the session",
     }
     CHECK(settings->frame_pacing_mode.GetValue() == Settings::FramePacingMode::Target_Auto);
     CHECK_FALSE(settings->oot_60hz_presentation.GetValue());
+    CHECK(settings->cpu_clock.GetValue() == Settings::CpuClock::Overclock);
+    CHECK(settings->sync_core_speed.GetValue());
 }
 
 TEST_CASE("Accepted MKW settings replace visible global preferences", "[game_presets]") {
@@ -84,7 +96,7 @@ TEST_CASE("Accepted MKW settings replace visible global preferences", "[game_pre
     CHECK(settings->renderer_backend.UsingGlobal());
     CHECK(settings->gpu_accuracy.UsingGlobal());
     CHECK(settings->renderer_backend.GetValue(true) == Settings::RendererBackend::Vulkan);
-    CHECK(settings->gpu_accuracy.GetValue(true) == Settings::GpuAccuracy::Low);
+    CHECK(settings->gpu_accuracy.GetValue(true) == ExpectedGpuAccuracy);
 }
 
 TEST_CASE("MKW preset overrides saved settings for the session", "[game_presets]") {

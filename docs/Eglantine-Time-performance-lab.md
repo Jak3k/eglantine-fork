@@ -33,3 +33,13 @@ Mario Kart World: reproduced failure to initialize the nested mkw_zero_depth_v1 
 No shader catalogue entries were added: no new native programs were identified, both local catalogue directories are absent and EDEN_NX2_CATALOG_DIR is unset. Python aliases have no installed interpreter.
 
 Assisted by Codex (research, adaptation, tests and packaging); publication requested by repository owner.
+
+## Platform profiles and follow-up checks
+
+The owner's NVIDIA Windows machine uses Fast GPU mode; their AMD Linux machine performs better with Accurate. The optional Zelda and Mario Kart presets now select those platform modes. Zelda's accepted session preset additionally selects CPU Clock Normal and Sync Core Speed off for Dynamic FPS. Declining preserves existing configuration, and session changes restore after stopping the game. The dialog describes the actual selected mode.
+
+Added direct SSA regressions for long register-copy chains and a branch merge that must retain two distinct incoming values.
+
+A later Mario Kart control with the cache directory present averaged 29.71 FPS, versus 29.17 with a larger texture budget. No budget expansion is adopted; the first 23.16 FPS control lacked functioning disk caching and is not a clean memory-budget comparison. The directory initialization fix is retained.
+
+The contiguous-range-only Zelda build averaged 36.80 FPS at normal CPU clock, versus the earlier 37.52 control. This single comparison does not establish a steady-FPS benefit; gameplay-speed validation of the Dynamic FPS build is separate.

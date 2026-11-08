@@ -12,7 +12,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: windows-exe-${{ github.ref }}
+  group: windows-exe-${{ github.sha }}
   cancel-in-progress: true
 
 jobs:
@@ -123,5 +123,5 @@ jobs:
         run: |
           set -euo pipefail
           tag="eglantine-time-test-windows-${GITHUB_SHA:0:12}"
-          printf 'Performance-lab Windows x64 / Vulkan TEST build from commit `%s`.\n\nMSVC compilation, core/shader CTest, package checks, and both executable startup checks passed. This experimental build includes Zelda Dynamic FPS (requires CPU Clock Normal and Sync Core Speed off), contiguous GPU-range reuse, the lichii-custom SSA optimization and a Mario Kart World shader-cache directory fix. Gameplay speed and FPS gains require validation; 60 FPS pacing is retained.\n\nBuild: https://github.com/%s/actions/runs/%s\n\nCodex assisted with build fixes and packaging; publication was authorized by the repository owner.\n' "$GITHUB_SHA" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" > release-notes.md
+          printf 'Performance-lab Windows x64 / Vulkan TEST build from commit `%s`.\n\nMSVC compilation, core/shader CTest, package checks, and both executable startup checks passed. This experimental build includes Zelda Dynamic FPS (requires CPU Clock Normal and Sync Core Speed off), contiguous GPU-range reuse, the lichii-custom SSA optimization and a Mario Kart World shader-cache directory fix. Gameplay speed and FPS gains require validation; 60 FPS pacing is retained. Accepting the optional game preset selects Fast on Windows and Accurate on Linux, with normal CPU clock for Zelda. Saved settings are preserved.\n\nBuild: https://github.com/%s/actions/runs/%s\n\nCodex assisted with build fixes and packaging; publication was authorized by the repository owner.\n' "$GITHUB_SHA" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" > release-notes.md
           gh release create "$tag" release-assets/*.zip release-assets/SHA256SUMS.txt --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "Eglantine-Time experimental Windows ${GITHUB_SHA:0:12}" --notes-file release-notes.md --prerelease --latest=false

@@ -1973,12 +1973,14 @@ void MainWindow::BootGame(const QString& filename, Service::AM::FrontendAppletPa
             QMessageBox::question(
                 this, tr("Recommended Mario Kart World settings"),
                 tr("Use the recommended settings for Mario Kart World?\n\n"
-                   "Vulkan, 1x resolution, GPU Fast, asynchronous shaders, BC3, conservative VRAM, "
+                   "Vulkan, 1x resolution, GPU %1, asynchronous shaders, BC3, conservative VRAM, "
                    "reactive flushing off, FIFO Relaxed VSync, handheld mode, ScaleForce, and "
                    "FXAA.\n\n"
                    "They apply to Mario Kart World until Eglantine-Time is closed. Your saved "
                    "settings "
-                   "are not changed."),
+                   "are not changed.")
+                    .arg(Settings::RecommendedGpuAccuracy == Settings::GpuAccuracy::High
+                             ? tr("Accurate") : tr("Fast")),
                 QMessageBox::Yes | QMessageBox::No, QMessageBox::No) == QMessageBox::Yes;
         LOG_INFO(Config, "MKW recommended settings accepted: {}", use_recommended_mkw_settings);
     }
@@ -1995,12 +1997,15 @@ void MainWindow::BootGame(const QString& filename, Service::AM::FrontendAppletPa
             QMessageBox::question(
                 this, tr("Recommended Ocarina of Time settings"),
                 tr("Use the recommended settings for Ocarina of Time?\n\n"
-                   "Vulkan, 1x resolution, GPU Fast, asynchronous shaders, BC3, conservative VRAM, "
+                   "Vulkan, 1x resolution, GPU %1, asynchronous shaders, BC3, conservative VRAM, "
                    "reactive flushing on, FIFO Relaxed VSync, docked mode, ScaleForce, and "
-                   "FXAA, 60 FPS frame pacing, and 60 Hz presentation.\n\n"
+                   "FXAA, 60 FPS frame pacing, 60 Hz presentation, CPU Clock Normal, and "
+                   "Sync Core Speed off.\n\n"
                    "They apply to Ocarina of Time until Eglantine-Time is closed. Your saved "
                    "settings "
-                   "are not changed."),
+                   "are not changed.")
+                    .arg(Settings::RecommendedGpuAccuracy == Settings::GpuAccuracy::High
+                             ? tr("Accurate") : tr("Fast")),
                 QMessageBox::Yes | QMessageBox::No, QMessageBox::No) == QMessageBox::Yes;
         LOG_INFO(Config, "OOT recommended settings accepted: {}", use_recommended_oot_settings);
     }
