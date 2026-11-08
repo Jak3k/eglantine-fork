@@ -4,6 +4,9 @@ on:
   workflow_dispatch:
   push:
     branches: [eglantine-time]
+    paths-ignore:
+      - 'docs/**'
+      - '.github/workflows/linux-exe.yml'
 
 permissions:
   contents: read
