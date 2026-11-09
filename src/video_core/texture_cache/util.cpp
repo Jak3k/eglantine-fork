@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <array>
 #include <cstring>
+#include <cstdlib>
 #include <numeric>
 #include <optional>
 #include <span>
@@ -1258,12 +1259,26 @@ UnswizzlePlan PlanUnswizzleImageRows(
 
 void ExecuteUnswizzlePlan(Tegra::MemoryManager& gpu_memory, const UnswizzlePlan& plan,
                          std::span<u8> output) {
+    // Read contiguous mappings directly; retain the copy path for split mappings and comparison.
+    static const bool always_copy = [] {
+        const char* value = std::getenv("EDEN_NX2_UNSWIZZLE_COPY");
+        return value != nullptr && value[0] == '1';
+    }();
     std::vector<u8> run;
     for (const auto& r : plan.runs) {
-        run.resize(r.guest_bytes);
-        gpu_memory.ReadBlockUnsafe(r.src_addr, run.data(), r.guest_bytes);
+        std::span<const u8> input;
+        if (const u8* direct = !always_copy &&
+                                       gpu_memory.IsContinuousRange(r.src_addr, r.guest_bytes)
+                                   ? gpu_memory.GetPointer(r.src_addr)
+                                   : nullptr) {
+            input = std::span<const u8>{direct, r.guest_bytes};
+        } else {
+            run.resize(r.guest_bytes);
+            gpu_memory.ReadBlockUnsafe(r.src_addr, run.data(), r.guest_bytes);
+            input = run;
+        }
         Tegra::Texture::UnswizzleTexture(output.subspan(r.host_offset, r.host_bytes),
-                                         run, 1U << plan.bpp_log2, r.run_tiles, r.tile_rows, 1,
+                                         input, 1U << plan.bpp_log2, r.run_tiles, r.tile_rows, 1,
                                          r.block.height, r.block.depth, r.run_alignment,
                                          gpu_memory.UsesNativeTiling());
     }

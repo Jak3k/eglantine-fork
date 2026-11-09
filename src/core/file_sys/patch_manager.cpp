@@ -63,6 +63,12 @@ struct BuiltinPatch {
     size_t state_size = 0;
 };
 
+constexpr std::array<u8, 4> MAX_RESOLUTION_ORIGINAL{0xE8, 0x41, 0x00, 0x36};
+constexpr std::array<u8, 4> MAX_RESOLUTION_BRANCH{0x0F, 0x02, 0x00, 0x14};
+constexpr std::array MAX_RESOLUTION_RECORDS{
+    BuiltinPatchRecord{0x805BD0, MAX_RESOLUTION_BRANCH, MAX_RESOLUTION_ORIGINAL},
+};
+
 constexpr std::array<u8, 4> DYNAMIC_FPS_ORIGINAL{0x28, 0x18, 0x20, 0x1E};
 constexpr std::array<u8, 4> DYNAMIC_FPS_CALL{0x4F, 0x7D, 0xD5, 0x94};
 constexpr std::array<u8, 120> DYNAMIC_FPS_ROUTINE{
@@ -81,6 +87,13 @@ constexpr std::array DYNAMIC_FPS_RECORDS{
 };
 
 constexpr std::array BUILTIN_PATCHES{
+    BuiltinPatch{
+        .name = "Max Resolution (built-in)",
+        .title_id = 0x0400486024DEC000,
+        .module = "main",
+        .build_id = "E0F3CCFAF50065AE4EA01EB5AEB13B1A45DA3348",
+        .records = MAX_RESOLUTION_RECORDS,
+    },
     BuiltinPatch{
         .name = "Dynamic FPS by Dark (built-in)",
         .title_id = 0x0400486024DEC000,
@@ -519,8 +532,9 @@ std::vector<u8> PatchManager::PatchNSO(const std::vector<u8>& nso, const std::st
             LOG_INFO(Loader, "    - Skipping \"{}\": disabled in Add-Ons", patch.name);
             continue;
         }
-        if (Settings::values.cpu_clock.GetValue() != Settings::CpuClock::Normal ||
-            Settings::values.sync_core_speed.GetValue()) {
+        if (patch.state_size != 0 &&
+            (Settings::values.cpu_clock.GetValue() != Settings::CpuClock::Normal ||
+             Settings::values.sync_core_speed.GetValue())) {
             LOG_WARNING(Loader,
                         "    - Skipping \"{}\": requires CPU Clock Normal and Sync Core Speed off",
                         patch.name);

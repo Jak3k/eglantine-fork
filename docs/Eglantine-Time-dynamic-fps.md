@@ -6,7 +6,7 @@ Use CPU Clock **Normal** and **Sync Core Speed off**. This fork skips the patch 
 
 ## Source and safeguards
 
-Dark wrote the routine; Frizti integrated it with permission to bundle it (commit 765659af4ccb7201d1145c57f3b45ce84653cea0). The loader integration and regression tests are adapted from Lichii build-88 under GPL-3.0-or-later, with ctgl1987's delta-cap change from PR #584. This port includes neither Max Resolution nor the above-60-FPS unlock.
+Dark wrote the routine; Frizti integrated it with permission to bundle it (commit 765659af4ccb7201d1145c57f3b45ce84653cea0). The loader integration and regression tests are adapted from Lichii build-88 under GPL-3.0-or-later, with ctgl1987's delta-cap change from PR #584. Max Resolution is now included as a separate Add-On. The above-60-FPS unlock is not included.
 
 - https://github.com/zortos293/Lichii/releases/tag/build-88
 - https://github.com/zortos293/Lichii/pull/584
@@ -20,3 +20,11 @@ Production PatchManager tests cover the exact routine, enable/disable behavior, 
 Gameplay validation is pending; keep this a test build until matched scene and real-time movement comparisons pass.
 
 Assisted by Codex (port, guards, tests and documentation).
+
+## Max Resolution and texture upload experiment
+
+Max Resolution is enabled by default for the same supported Zelda main build and can be disabled independently. It replaces the checked instruction at 0x805BD0, preserving user-mod precedence and bounds/build checks. It holds the game's internal resolution at full scale; this is an image-quality option and may increase GPU cost, not a promised FPS gain. Its application does not depend on the CPU clock.
+
+The user's reference screenshot is from Lichii custom, showing both built-in Add-Ons and its 60 FPS mode. That label alone is not a measurement of simulation speed. Eglantine-Time retains its existing 30/60 frame-pacing choices.
+
+Texture uploads also adopt tomk134/lichii-custom e8e50e7978d5f822f038af16901c4d95f8249915: contiguous GPU mappings are read directly by the texture deswizzler instead of copied to a temporary vector. Split or inaccessible mappings retain the copy path. EDEN_NX2_UNSWIZZLE_COPY=1 forces copying for comparisons. This targets texture-loading overhead across Zelda, Donkey Kong and Mario Kart; gameplay gains remain to be measured.

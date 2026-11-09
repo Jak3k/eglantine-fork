@@ -28,6 +28,7 @@ namespace {
 
 constexpr u64 OcarinaTitleId = 0x0400486024DEC000;
 constexpr u64 OtherTitleId = 0x0100000000010000;
+constexpr std::string_view MaxResolution = "Max Resolution (built-in)";
 constexpr std::string_view DynamicFps = "Dynamic FPS by Dark (built-in)";
 constexpr std::string_view OcarinaBuildIdHex = "E0F3CCFAF50065AE4EA01EB5AEB13B1A45DA3348";
 constexpr FileSys::PatchManager::BuildID OcarinaBuildId{
@@ -77,6 +78,7 @@ class PatchManagerTestContext {
 public:
     explicit PatchManagerTestContext(std::optional<u32> user_mod_word = std::nullopt,
                                      size_t user_mod_offset = PatchOffset) {
+        Settings::values.disabled_addons[OcarinaTitleId] = {std::string{MaxResolution}};
         Settings::values.cpu_clock.SetValue(Settings::CpuClock::Normal);
         Settings::values.sync_core_speed.SetValue(false);
         for (size_t i = 0; i < TestDirectories.size(); ++i) {
@@ -196,7 +198,7 @@ TEST_CASE("Built-in Dynamic FPS defaults on and can be disabled in Add-Ons", "[p
     REQUIRE(WordAt(manager.PatchNSO(nso, "main"), DynamicCallOffset) == DynamicOriginalInstruction);
     REQUIRE(WordAt(manager.PatchNSO(nso, "main"), DynamicRoutineOffset) == u32{0});
 
-    Settings::values.disabled_addons[OcarinaTitleId].clear();
+    Settings::values.disabled_addons[OcarinaTitleId] = {std::string{MaxResolution}};
     REQUIRE(enabled());
     patched = manager.PatchNSO(nso, "main");
     REQUIRE(WordAt(patched, DynamicCallOffset) == DynamicCallInstruction);
@@ -209,7 +211,7 @@ TEST_CASE("Built-in Dynamic FPS defaults on and can be disabled in Add-Ons", "[p
 TEST_CASE("Built-in Dynamic FPS rejects mismatched or truncated modules transactionally",
           "[patch_manager]") {
     PatchManagerTestContext context;
-    Settings::values.disabled_addons[OcarinaTitleId].clear();
+    Settings::values.disabled_addons[OcarinaTitleId] = {std::string{MaxResolution}};
     auto nso = MakeDynamicMain();
     std::string module = "main";
     u64 title = OcarinaTitleId;
@@ -288,9 +290,44 @@ TEST_CASE("Built-in Dynamic FPS leaves both records alone when a user mod change
         offset = DynamicStateOffset;
     }
     PatchManagerTestContext context{mod_word, offset};
-    Settings::values.disabled_addons[OcarinaTitleId].clear();
+    Settings::values.disabled_addons[OcarinaTitleId] = {std::string{MaxResolution}};
     const auto nso = MakeDynamicMain();
     auto expected = nso;
     std::memcpy(expected.data() + offset, &mod_word, sizeof(mod_word));
     REQUIRE(context.Manager().PatchNSO(nso, "main") == expected);
+}
+
+TEST_CASE("Max Resolution checks the original build and respects user mods", "[patch_manager]") {
+    SECTION("Matching original applies independently of CPU clock") {
+        PatchManagerTestContext context;
+        Settings::values.disabled_addons[OcarinaTitleId].clear();
+        Settings::values.cpu_clock.SetValue(Settings::CpuClock::Overclock);
+        const auto result = context.Manager().PatchNSO(MakeMain(OcarinaBuildId, TbzInstruction), "main");
+        REQUIRE(WordAt(result) == 0x1400020FU);
+    }
+    SECTION("Disabled leaves the image unchanged") {
+        PatchManagerTestContext context;
+        const auto nso = MakeMain(OcarinaBuildId, TbzInstruction);
+        REQUIRE(context.Manager().PatchNSO(nso, "main") == nso);
+    }
+    SECTION("Wrong original instruction is unchanged") {
+        PatchManagerTestContext context;
+        Settings::values.disabled_addons[OcarinaTitleId].clear();
+        const auto nso = MakeMain(OcarinaBuildId, 0xD503201FU);
+        REQUIRE(context.Manager().PatchNSO(nso, "main") == nso);
+    }
+    SECTION("Wrong build is unchanged") {
+        PatchManagerTestContext context;
+        Settings::values.disabled_addons[OcarinaTitleId].clear();
+        auto build = OcarinaBuildId;
+        build[0] ^= 1;
+        const auto nso = MakeMain(build, TbzInstruction);
+        REQUIRE(context.Manager().PatchNSO(nso, "main") == nso);
+    }
+    SECTION("A user IPS modification takes precedence") {
+        PatchManagerTestContext context{0xD503201FU};
+        Settings::values.disabled_addons[OcarinaTitleId].clear();
+        const auto result = context.Manager().PatchNSO(MakeMain(OcarinaBuildId, TbzInstruction), "main");
+        REQUIRE(WordAt(result) == 0xD503201FU);
+    }
 }
