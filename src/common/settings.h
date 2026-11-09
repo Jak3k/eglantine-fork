@@ -64,6 +64,7 @@ SETTING(std::string, false);
 SETTING(u16, false);
 SWITCHABLE(AnisotropyMode, true);
 SWITCHABLE(AntiAliasing, false);
+SWITCHABLE(OotAntiAliasing, false);
 SWITCHABLE(AspectRatio, true);
 SWITCHABLE(AstcDecodeMode, true);
 SWITCHABLE(AstcRecompression, true);
@@ -364,6 +365,7 @@ struct Values {
                                                     Specialization::Default,
                                                     true,
                                                     true};
+    SwitchableSetting<bool> game_dlss_network{linkage, false, "game_dlss_network", Category::Renderer};
     SwitchableSetting<int, true> fsr_sharpening_slider{linkage,
 #ifdef __ANDROID__
                                                        0,
@@ -395,6 +397,9 @@ struct Values {
                                                   Specialization::Default,
                                                   true,
                                                   true};
+
+    SwitchableSetting<OotAntiAliasing> oot_anti_aliasing{linkage, OotAntiAliasing::Game,
+                                                       "oot_anti_aliasing", Category::Renderer};
 
     SwitchableSetting<std::string> post_shader_chain{linkage,
                                                      std::string(),

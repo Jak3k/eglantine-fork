@@ -145,6 +145,12 @@ std::unique_ptr<TranslationMap> InitializeTranslations(QObject* parent) {
               "Higher resolutions require more VRAM and bandwidth.\n"
               "Options lower than 1X can cause artifacts."));
     INSERT(Settings, scaling_filter, tr("Window Adapting Filter:"), QString());
+    INSERT(Settings, game_dlss_network, tr("Use the game's own DLSS"),
+           tr("Runs a Switch 2 game's own DLSS (its upscaling network, translated for this GPU) "
+              "instead of AMD FSR 3.1 in its place.\nAMD FSR 3.1 still draws while the network is "
+              "checked, when it can't run on this GPU, with resolution scaling, and for the rest "
+              "of the session if its output fails Eglantine-Time's checks.\nTakes effect when a game "
+              "starts."));
     INSERT(Settings, fsr_sharpening_slider, tr("RCAS Sharpness:"),
            tr("Strength of RCAS (AMD's contrast-adaptive sharpening) on the upscaler used in place "
               "of a game's DLSS (AMD FSR 3.1); 0% turns it off.\nAlso sets the sharpening "
@@ -158,6 +164,11 @@ std::unique_ptr<TranslationMap> InitializeTranslations(QObject* parent) {
     INSERT(Settings, anti_aliasing, tr("Anti-Aliasing Method:"),
            tr("The anti-aliasing method to use.\nSMAA offers the best quality.\nFXAA "
               "can produce a more stable picture in lower resolutions."));
+    INSERT(Settings, oot_anti_aliasing, tr("Ocarina of Time anti-aliasing:"),
+           tr("The Legend of Zelda: Ocarina of Time only.\nGame: the game's own anti-aliasing "
+              "network, which sharpens heavily.\nNo sharpening: the image as the game renders it, "
+              "without the network (faster; pairs well with a higher resolution).\nTakes effect "
+              "when the game starts."));
     INSERT(Settings, post_shader_chain, QString(), QString());
     INSERT(Settings, post_shader_preset, QString(), QString());
     INSERT(Settings, post_shader_enabled, tr("Enable post-processing effects"),
@@ -529,6 +540,11 @@ std::unique_ptr<ComboboxTranslationMap> ComboboxEnumeration(QObject* parent) {
                               PAIR(ScalingFilter, Sgsr, tr("Snapdragon Game Super Resolution")),
                               PAIR(ScalingFilter, SgsrEdge, tr("Snapdragon Game Super Resolution EdgeDir")),
                               PAIR(ScalingFilter, Fsr3, tr("AMD FidelityFX Super Resolution 1, softer sharpening")),
+                          }});
+    translations->insert({Settings::EnumMetadata<Settings::OotAntiAliasing>::Index(),
+                          {
+                              PAIR(OotAntiAliasing, Game, tr("Game")),
+                              PAIR(OotAntiAliasing, NoSharpening, tr("No sharpening")),
                           }});
     translations->insert({Settings::EnumMetadata<Settings::AntiAliasing>::Index(),
                           {

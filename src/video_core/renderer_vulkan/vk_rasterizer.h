@@ -16,6 +16,7 @@
 #include "video_core/engines/maxwell_dma.h"
 #include "video_core/host1x/gpu_device_memory_manager.h"
 #include "video_core/rasterizer_interface.h"
+#include "video_core/oot_network.h"
 #include "video_core/renderer_vulkan/blit_image.h"
 #include "video_core/renderer_vulkan/vk_buffer_cache.h"
 #include "video_core/renderer_vulkan/vk_descriptor_buffer.h"
@@ -153,6 +154,10 @@ public:
     void LoadDiskResources(u64 title_id, std::stop_token stop_loading,
                            const VideoCore::DiskResourceLoadCallback& callback) override;
 
+    VideoCommon::OotNetwork::BypassState* OotNetworkBypass() override {
+        return &oot_network_bypass;
+    }
+
     void InitializeChannel(Tegra::Control::ChannelState& channel) override;
 
     void BindChannel(Tegra::Control::ChannelState& channel) override;
@@ -168,6 +173,9 @@ private:
         0x0100E95004038000ULL, // XC2
         0x0100A6301214E000ULL, // FE:Engage
     };
+    void TrackOotTonemappedImage(const GraphicsPipeline& pipeline);
+    VideoCommon::OotNetwork::BypassState oot_network_bypass;
+
     static constexpr size_t MAX_TEXTURES = 192;
     static constexpr size_t MAX_IMAGES = 48;
     static constexpr size_t MAX_IMAGE_VIEWS = MAX_TEXTURES + MAX_IMAGES;

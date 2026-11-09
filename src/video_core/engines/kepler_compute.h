@@ -63,6 +63,9 @@ public:
     ~KeplerCompute();
 
     /// Binds a rasterizer to this engine.
+    std::optional<Texture::TICEntry> ConstBuffer0Image(u32 offset) const;
+    bool BypassOotNetwork(u64 program_id, u64 native_key);
+
     void BindRasterizer(VideoCore::RasterizerInterface* rasterizer);
 
     /// Whether a write to `method` can write memory (a dispatch, upload or report): with the

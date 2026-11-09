@@ -506,6 +506,9 @@ void RasterizerVulkan::PrepareDraw(bool is_indexed, Func&& draw_func) {
         report_failure("no pipeline");
         return;
     }
+    if (VideoCommon::OotNetwork::BypassEnabled(Settings::GetCurrentProgramID())) {
+        TrackOotTonemappedImage(*pipeline);
+    }
     if (!is_indexed && TryNx2IndirectReset()) {
         submitted = true;
         return;
@@ -1248,6 +1251,18 @@ bool SyncFixEnabled() {
 }
 } // namespace
 
+void RasterizerVulkan::TrackOotTonemappedImage(const GraphicsPipeline& pipeline) {
+    const auto& hashes = pipeline.ShaderHashes();
+    if (std::none_of(hashes.begin(), hashes.end(), VideoCommon::OotNetwork::IsTonemapShader)) {
+        return;
+    }
+    const GPUVAddr target = maxwell3d->regs.rt[0].Address();
+    if (target != 0 &&
+        oot_network_bypass.tonemapped_image.exchange(target, std::memory_order_relaxed) != target) {
+        LOG_INFO(Render_Vulkan, "Ocarina of Time: tonemapped image at {:#x}", target);
+    }
+}
+
 void RasterizerVulkan::DispatchCompute() {
     VideoCommon::Nx2Profile::Scope profile_scope{VideoCommon::Nx2Profile::Zone::Compute};
     FlushWork();
@@ -1259,6 +1274,10 @@ void RasterizerVulkan::DispatchCompute() {
 
     u64 native_key{};
     ComputePipeline* const pipeline{pipeline_cache.CurrentComputePipeline(native_key)};
+    if (kepler_compute->IsNativeMode() &&
+        kepler_compute->BypassOotNetwork(Settings::GetCurrentProgramID(), native_key)) {
+        return;
+    }
     if (!pipeline) {
         if (kepler_compute->IsNativeMode()) throw Shader::RuntimeError("Native compute pipeline unavailable");
         return;
